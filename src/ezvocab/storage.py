@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -24,6 +25,11 @@ SCHEMA_VERSION = 3
 
 
 def default_db_path() -> Path:
+    # On Android/iOS, Flet provides FLET_APP_STORAGE_DATA for writable storage.
+    # Path.home() is not writable on mobile platforms.
+    storage_data = os.environ.get("FLET_APP_STORAGE_DATA")
+    if storage_data:
+        return Path(storage_data) / "ezvocab.sqlite3"
     return Path.home() / ".ezvocab" / "ezvocab.sqlite3"
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass
 
@@ -43,12 +44,19 @@ def run() -> None:
     ft.run(main)
 
 
+def _is_mobile() -> bool:
+    platform = os.environ.get("FLET_PLATFORM", "").lower()
+    return platform in ("android", "ios")
+
+
 def main(page: ft.Page) -> None:
     services = AppServices.create()
     page.title = "EzVocab"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window.min_width = 900
-    page.window.min_height = 640
+
+    if not _is_mobile():
+        page.window.min_width = 900
+        page.window.min_height = 640
 
     selected_index = 0
     content = ft.Container(expand=True, padding=24)
@@ -63,33 +71,57 @@ def main(page: ft.Page) -> None:
     def route(index: int) -> None:
         nonlocal selected_index
         selected_index = index
-        nav.selected_index = selected_index
         builders = [review_view, add_card_view, suggestions_view, settings_view]
         content.content = builders[selected_index](services, toast, route)
+        if _is_mobile():
+            nav_bar.selected_index = selected_index
+        else:
+            nav_rail.selected_index = selected_index
         page.update()
 
-    nav = ft.NavigationRail(
-        selected_index=selected_index,
-        label_type=ft.NavigationRailLabelType.ALL,
-        destinations=[
-            ft.NavigationRailDestination(icon=ft.Icons.SCHOOL_OUTLINED, label="Review"),
-            ft.NavigationRailDestination(icon=ft.Icons.ADD_CARD_OUTLINED, label="Add"),
-            ft.NavigationRailDestination(icon=ft.Icons.AUTO_AWESOME_OUTLINED, label="Suggest"),
-            ft.NavigationRailDestination(icon=ft.Icons.SETTINGS_OUTLINED, label="Settings"),
-        ],
-        on_change=lambda e: route(int(e.control.selected_index)),
-    )
+    nav_destinations = [
+        (ft.Icons.SCHOOL_OUTLINED, "Review"),
+        (ft.Icons.ADD_CARD_OUTLINED, "Add"),
+        (ft.Icons.AUTO_AWESOME_OUTLINED, "Suggest"),
+        (ft.Icons.SETTINGS_OUTLINED, "Settings"),
+    ]
 
-    page.add(
-        ft.Row(
-            expand=True,
-            controls=[
-                ft.Container(nav, padding=ft.Padding(0, 12, 0, 0)),
-                ft.VerticalDivider(width=1),
-                content,
+    if _is_mobile():
+        # Bottom navigation for mobile
+        nav_bar = ft.NavigationBar(
+            selected_index=selected_index,
+            destinations=[
+                ft.NavigationBarDestination(icon=icon, label=label)
+                for icon, label in nav_destinations
             ],
+            on_change=lambda e: route(int(e.control.selected_index)),
         )
-    )
+        nav_rail = None  # not used on mobile
+        page.navigation_bar = nav_bar
+        page.add(content)
+    else:
+        # Side rail for desktop
+        nav_rail = ft.NavigationRail(
+            selected_index=selected_index,
+            label_type=ft.NavigationRailLabelType.ALL,
+            destinations=[
+                ft.NavigationRailDestination(icon=icon, label=label)
+                for icon, label in nav_destinations
+            ],
+            on_change=lambda e: route(int(e.control.selected_index)),
+        )
+        nav_bar = None  # not used on desktop
+        page.add(
+            ft.Row(
+                expand=True,
+                controls=[
+                    ft.Container(nav_rail, padding=ft.Padding(0, 12, 0, 0)),
+                    ft.VerticalDivider(width=1),
+                    content,
+                ],
+            )
+        )
+
     route(0)
 
 
