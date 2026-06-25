@@ -9,14 +9,18 @@ from typing import Iterator
 from ezvocab.models import (
     CardRecord,
     CardStatus,
+    LearningCard,
     NewCard,
     SuggestionRecord,
     SuggestionStatus,
     WordSuggestion,
+    learning_cards_from_json,
+    learning_cards_to_json,
+    make_definition_card,
 )
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def default_db_path() -> Path:
@@ -123,6 +127,27 @@ class Database:
                 except sqlite3.OperationalError:
                     pass
 
+            if current_version < 3:
+                try:
+                    conn.execute("ALTER TABLE cards ADD COLUMN learning_cards TEXT NOT NULL DEFAULT '[]'")
+                except sqlite3.OperationalError:
+                    pass
+                try:
+                    conn.execute("ALTER TABLE suggestions ADD COLUMN learning_cards TEXT NOT NULL DEFAULT '[]'")
+                except sqlite3.OperationalError:
+                    pass
+                conn.execute(
+                    """
+                    UPDATE cards SET learning_cards = json_array(
+                        json_object(
+                            'card_type', 'definition',
+                            'front', json_object('prompt', word, 'answer', part_of_speech),
+                            'back', json_object('prompt', definition, 'answer', example_sentence)
+                        )
+                    ) WHERE learning_cards = '[]'
+                    """
+                )
+
             conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self._ensure_default_settings(conn)
 
@@ -148,13 +173,15 @@ class CardRepository:
 
     def add(self, card: NewCard, fsrs_card: str, due_at: datetime, embedding: bytes | None = None) -> CardRecord:
         now = encode_datetime(utc_now())
+        cards_json = learning_cards_to_json(list(card.learning_cards)) if card.learning_cards else "[]"
         with self.db.transaction() as conn:
             cursor = conn.execute(
                 """
                 INSERT INTO cards(
                     word, definition, example_sentence, part_of_speech, source,
-                    status, fsrs_card, due_at, created_at, updated_at, embedding
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, fsrs_card, due_at, created_at, updated_at, embedding,
+                    learning_cards
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     card.word.strip(),
@@ -168,6 +195,7 @@ class CardRepository:
                     now,
                     now,
                     embedding,
+                    cards_json,
                 ),
             )
             card_id = int(cursor.lastrowid)
@@ -276,12 +304,13 @@ class SuggestionRepository:
         ids: list[int] = []
         with self.db.transaction() as conn:
             for suggestion in suggestions:
+                cards_json = learning_cards_to_json(list(suggestion.learning_cards)) if suggestion.learning_cards else "[]"
                 cursor = conn.execute(
                     """
                     INSERT INTO suggestions(
                         word, definition, example_sentence, part_of_speech,
-                        provider, status, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        provider, status, created_at, learning_cards
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         suggestion.word.strip(),
@@ -291,6 +320,7 @@ class SuggestionRepository:
                         provider,
                         SuggestionStatus.PENDING.value,
                         created_at,
+                        cards_json,
                     ),
                 )
                 ids.append(int(cursor.lastrowid))
@@ -350,6 +380,15 @@ class SettingsRepository:
 def _card_from_row(row: sqlite3.Row) -> CardRecord:
     embedding_raw = row["embedding"]
     embedding = bytes(embedding_raw) if embedding_raw is not None else None
+    raw_cards = str(row["learning_cards"]) if "learning_cards" in row.keys() else "[]"
+    learning_cards = tuple(learning_cards_from_json(raw_cards))
+    if not learning_cards:
+        learning_cards = (make_definition_card(
+            str(row["word"]),
+            str(row["definition"]),
+            str(row["part_of_speech"]),
+            str(row["example_sentence"]),
+        ),)
     return CardRecord(
         id=int(row["id"]),
         word=str(row["word"]),
@@ -363,10 +402,20 @@ def _card_from_row(row: sqlite3.Row) -> CardRecord:
         created_at=decode_datetime(str(row["created_at"])),
         updated_at=decode_datetime(str(row["updated_at"])),
         embedding=embedding,
+        learning_cards=learning_cards,
     )
 
 
 def _suggestion_from_row(row: sqlite3.Row) -> SuggestionRecord:
+    raw_cards = str(row["learning_cards"]) if "learning_cards" in row.keys() else "[]"
+    learning_cards = tuple(learning_cards_from_json(raw_cards))
+    if not learning_cards:
+        learning_cards = (make_definition_card(
+            str(row["word"]),
+            str(row["definition"]),
+            str(row["part_of_speech"]),
+            str(row["example_sentence"]),
+        ),)
     return SuggestionRecord(
         id=int(row["id"]),
         word=str(row["word"]),
@@ -376,4 +425,5 @@ def _suggestion_from_row(row: sqlite3.Row) -> SuggestionRecord:
         provider=str(row["provider"]),
         status=str(row["status"]),
         created_at=decode_datetime(str(row["created_at"])),
+        learning_cards=learning_cards,
     )

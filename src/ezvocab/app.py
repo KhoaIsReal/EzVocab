@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 import flet as ft
@@ -7,7 +8,7 @@ import numpy as np
 
 from ezvocab.embedding import GeminiEmbedder, embedding_to_bytes, bytes_to_embedding, cosine_similarity
 from ezvocab.llm import SuggestionProviderError, provider_from_settings
-from ezvocab.models import CEFRLevel, NewCard, ReviewRating, SuggestionStatus
+from ezvocab.models import CEFRLevel, NewCard, ReviewRating, SuggestionStatus, make_definition_card
 from ezvocab.scheduler import SchedulerService
 from ezvocab.storage import (
     CardRepository,
@@ -138,16 +139,35 @@ def review_view(services: AppServices, toast, route) -> ft.Control:
         )
 
     card = due_cards[0]
-    answer = ft.Column(
-        visible=False,
-        spacing=12,
-        controls=[
-            ft.Divider(),
-            ft.Text(card.definition, size=18),
-            ft.Text(card.example_sentence, italic=True, color=ft.Colors.BLUE_GREY_700),
-            ft.Text(card.part_of_speech, color=ft.Colors.BLUE_GREY_500),
-        ],
-    )
+    learning_card = random.choice(card.learning_cards) if card.learning_cards else None
+
+    if learning_card:
+        front_hint = ft.Text(learning_card.front.answer, color=ft.Colors.BLUE_GREY_500) if learning_card.front.answer else ft.Container()
+        answer = ft.Column(
+            visible=False,
+            spacing=12,
+            controls=[
+                ft.Divider(),
+                ft.Text(learning_card.back.prompt, size=18),
+                ft.Text(learning_card.back.answer, italic=True, color=ft.Colors.BLUE_GREY_700) if learning_card.back.answer else ft.Container(),
+                ft.Text(f"Card type: {learning_card.card_type}", color=ft.Colors.BLUE_GREY_400, size=12),
+            ],
+        )
+        card_front = ft.Text(learning_card.front.prompt, size=42, weight=ft.FontWeight.BOLD)
+    else:
+        front_hint = ft.Container()
+        answer = ft.Column(
+            visible=False,
+            spacing=12,
+            controls=[
+                ft.Divider(),
+                ft.Text(card.definition, size=18),
+                ft.Text(card.example_sentence, italic=True, color=ft.Colors.BLUE_GREY_700),
+                ft.Text(card.part_of_speech, color=ft.Colors.BLUE_GREY_500),
+            ],
+        )
+        card_front = ft.Text(card.word, size=42, weight=ft.FontWeight.BOLD)
+
     reveal_button = ft.FilledButton("Reveal", icon=ft.Icons.VISIBILITY, on_click=lambda _: reveal())
     rating_row = ft.Row(visible=False, wrap=True, spacing=10)
 
@@ -181,7 +201,8 @@ def review_view(services: AppServices, toast, route) -> ft.Control:
                 content=ft.Column(
                     spacing=18,
                     controls=[
-                        ft.Text(card.word, size=42, weight=ft.FontWeight.BOLD),
+                        card_front,
+                        front_hint,
                         ft.Text(f"Source: {card.source}"),
                         answer,
                         ft.Row(controls=[reveal_button]),
@@ -203,15 +224,21 @@ def add_card_view(services: AppServices, toast, route) -> ft.Control:
         if not word.value or not definition.value:
             toast("Word and definition are required.")
             return
+        w = word.value
+        d = definition.value
+        p = part_of_speech.value or ""
+        e = example.value or ""
+        card = make_definition_card(w, d, p, e)
         services.scheduler.create_card(
             NewCard(
-                word=word.value,
-                definition=definition.value,
-                example_sentence=example.value or "",
-                part_of_speech=part_of_speech.value or "",
+                word=w,
+                definition=d,
+                example_sentence=e,
+                part_of_speech=p,
+                learning_cards=(card,),
             )
         )
-        toast(f"Added '{word.value}'.")
+        toast(f"Added '{w}'.")
         route(0)
 
     return ft.Column(
@@ -370,6 +397,7 @@ def _suggestion_tile(
                 example_sentence=suggestion.example_sentence,
                 part_of_speech=suggestion.part_of_speech,
                 source=f"llm:{suggestion.provider}",
+                learning_cards=suggestion.learning_cards,
             )
         )
         services.suggestions.mark(suggestion.id, SuggestionStatus.ACCEPTED)
@@ -380,6 +408,8 @@ def _suggestion_tile(
         services.suggestions.mark(suggestion.id, SuggestionStatus.REJECTED)
         toast(f"Rejected '{suggestion.word}'.")
         refresh_pending()
+
+    card_types = ", ".join(c.card_type for c in suggestion.learning_cards) if suggestion.learning_cards else "definition"
 
     return ft.Container(
         padding=16,
@@ -397,6 +427,7 @@ def _suggestion_tile(
                 ),
                 ft.Text(suggestion.definition),
                 ft.Text(suggestion.example_sentence, italic=True, color=ft.Colors.BLUE_GREY_700),
+                ft.Text(f"Cards: {card_types}", size=12, color=ft.Colors.BLUE_GREY_400),
                 ft.Row(
                     controls=[
                         ft.FilledButton("Accept", icon=ft.Icons.CHECK, on_click=accept),

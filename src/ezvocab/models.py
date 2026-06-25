@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Optional
@@ -25,6 +26,17 @@ class CEFRLevel(StrEnum):
     B2 = "B2"
     C1 = "C1"
     C2 = "C2"
+
+
+class CardType(StrEnum):
+    TRANSLATION = "translation"
+    CLOZE = "cloze"
+    EXAMPLE = "example"
+    DEFINITION = "definition"
+    SYNONYM = "synonym"
+    PRONUNCIATION = "pronunciation"
+    LISTENING = "listening"
+    IMAGE = "image"
 
 
 CEFR_DESCRIPTIONS: dict[CEFRLevel, str] = {
@@ -57,6 +69,7 @@ class CardRecord:
     created_at: datetime
     updated_at: datetime
     embedding: Optional[bytes] = None
+    learning_cards: tuple[LearningCard, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -66,6 +79,7 @@ class NewCard:
     example_sentence: str
     part_of_speech: str = ""
     source: str = "manual"
+    learning_cards: tuple[LearningCard, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,11 +93,51 @@ class ReviewLogRecord:
 
 
 @dataclass(frozen=True)
+class CardFace:
+    prompt: str
+    answer: str
+
+
+@dataclass(frozen=True)
+class LearningCard:
+    card_type: str
+    front: CardFace
+    back: CardFace
+
+
+def learning_cards_to_json(cards: list[LearningCard]) -> str:
+    return json.dumps([asdict(c) for c in cards])
+
+
+def learning_cards_from_json(raw: str) -> list[LearningCard]:
+    if not raw or raw == "[]":
+        return []
+    data = json.loads(raw)
+    return [
+        LearningCard(
+            card_type=item["card_type"],
+            front=CardFace(**item["front"]),
+            back=CardFace(**item["back"]),
+        )
+        for item in data
+    ]
+
+
+def make_definition_card(word: str, definition: str, part_of_speech: str, example_sentence: str) -> LearningCard:
+    return LearningCard(
+        card_type=CardType.DEFINITION,
+        front=CardFace(prompt=word, answer=part_of_speech),
+        back=CardFace(prompt=definition, answer=example_sentence),
+    )
+
+
+@dataclass(frozen=True)
 class WordSuggestion:
     word: str
     definition: str
     example_sentence: str
     part_of_speech: str = ""
+    learning_cards: tuple[LearningCard, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -96,3 +150,4 @@ class SuggestionRecord:
     provider: str
     status: str
     created_at: datetime
+    learning_cards: tuple[LearningCard, ...] = ()
