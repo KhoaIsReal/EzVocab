@@ -41,11 +41,11 @@ jobs:
 
       - name: Install dependencies (Linux/Windows)
         if: runner.os != 'macOS'
-        run: pip install -e ".[dev,desktop]" pyinstaller
+        run: pip install -e ".[dev]" pyinstaller
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: pip install -e ".[dev,desktop]" flet
+        run: pip install -e ".[dev]"
 
       - name: Build
         run: ${{ matrix.build_cmd }}
@@ -72,7 +72,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" flet
+        run: pip install -e ".[dev]"
 
       - name: Build APK
         run: flet build apk --arch arm64-v8a
@@ -99,12 +99,12 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" flet
+        run: pip install -e ".[dev]"
 
-      - name: Build IPA
-        run: flet build ipa --arch arm64
+      - name: Build iOS (simulator)
+        run: flet build ios-simulator --arch arm64
 
       - uses: actions/upload-artifact@v4
         with:
           name: EzVocab-ios
-          path: build/ipa/
+          path: build/ios-simulator/

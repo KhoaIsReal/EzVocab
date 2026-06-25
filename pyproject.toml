@@ -9,6 +9,7 @@ description = "A cross-platform English vocabulary learning app with FSRS schedu
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "flet>=0.28",
     "fsrs>=6.0",
     "google-genai>=1.0",
     "numpy>=1.26",
@@ -17,9 +18,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-]
-desktop = [
-    "flet>=0.28",
 ]
 
 [project.scripts]
