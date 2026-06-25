@@ -19,6 +19,9 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+desktop = [
+    "flet-desktop>=0.28",
+]
 
 [project.scripts]
 ezvocab = "ezvocab.app:run"
