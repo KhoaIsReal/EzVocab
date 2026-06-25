@@ -36,7 +36,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         if: runner.os == 'macOS'
         with:
-          flutter-version: "3.29.3"
+          flutter-version: "3.41.7"
           cache: true
 
       - name: Install dependencies (Linux/Windows)
@@ -68,7 +68,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.29.3"
+          flutter-version: "3.41.7"
           cache: true
 
       - name: Install dependencies
@@ -95,7 +95,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.29.3"
+          flutter-version: "3.41.7"
           cache: true
 
       - name: Install dependencies
