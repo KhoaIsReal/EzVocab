@@ -14,11 +14,11 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: EzVocab-linux
-            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
+            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" --collect-data flet main.py
             dist_path: dist/
           - os: windows-latest
             artifact: EzVocab-windows.exe
-            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab;ezvocab" main.py
+            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab;ezvocab" --collect-data flet main.py
             dist_path: dist/
           - os: macos-latest
             artifact: EzVocab-macos

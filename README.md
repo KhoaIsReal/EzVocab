@@ -31,7 +31,7 @@ python main.py
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
+pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" --collect-data flet main.py
 ```
 
 ### Mobile (Android / iOS)
