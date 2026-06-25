@@ -7,7 +7,9 @@ on:
 
 jobs:
   build-desktop:
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -42,6 +44,7 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +71,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
