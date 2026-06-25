@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: EzVocab-linux
+          - os: windows-latest
+            artifact: EzVocab-windows.exe
+          - os: macos-latest
+            artifact: EzVocab-macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -e ".[dev]" pyinstaller
+
+      - name: Build (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab;ezvocab" main.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
