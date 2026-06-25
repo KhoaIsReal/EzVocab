@@ -34,7 +34,17 @@ pip install pyinstaller
 pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
 ```
 
-Cross-platform builds (Linux, Windows, macOS) are automated via GitHub Actions — push a tag or trigger manually from the Actions tab.
+### Mobile (Android / iOS)
+
+Requires [Flutter SDK](https://docs.flutter.dev/get-started/install).
+
+```bash
+pip install flet
+flet build apk    # Android
+flet build ipa    # iOS (macOS only)
+```
+
+Cross-platform builds (Linux, Windows, macOS, Android, iOS) are automated via GitHub Actions — push a tag or trigger manually from the Actions tab.
 
 ## Test
 

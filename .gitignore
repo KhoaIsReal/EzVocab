@@ -5,6 +5,7 @@ dist/
 build/
 *.egg
 .eggs/
+.mimocode/
 *.so
 *.sqlite3
 
