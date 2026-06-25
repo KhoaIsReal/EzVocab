@@ -22,7 +22,7 @@ jobs:
             dist_path: dist/
           - os: macos-latest
             artifact: EzVocab-macos
-            build_cmd: flet build macos --architecture arm64
+            build_cmd: flet build macos --arch arm64
             dist_path: build/macos/
     runs-on: ${{ matrix.os }}
 
@@ -75,7 +75,7 @@ jobs:
         run: pip install -e ".[dev]" flet
 
       - name: Build APK
-        run: flet build apk --architecture arm64-v8a
+        run: flet build apk --arch arm64-v8a
 
       - uses: actions/upload-artifact@v4
         with:
@@ -102,7 +102,7 @@ jobs:
         run: pip install -e ".[dev]" flet
 
       - name: Build IPA
-        run: flet build ipa --architecture arm64
+        run: flet build ipa --arch arm64
 
       - uses: actions/upload-artifact@v4
         with:
