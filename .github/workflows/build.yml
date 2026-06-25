@@ -14,10 +14,16 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: EzVocab-linux
+            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
+            dist_path: dist/
           - os: windows-latest
             artifact: EzVocab-windows.exe
+            build_cmd: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab;ezvocab" main.py
+            dist_path: dist/
           - os: macos-latest
             artifact: EzVocab-macos
+            build_cmd: flet build macos
+            dist_path: build/macos/
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -27,20 +33,27 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: pip install -e ".[dev]" pyinstaller
+      - uses: subosito/flutter-action@v2
+        if: runner.os == 'macOS'
+        with:
+          flutter-version: "3.29.3"
+          cache: true
 
-      - name: Build (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab:ezvocab" main.py
+      - name: Install dependencies (Linux/Windows)
+        if: runner.os != 'macOS'
+        run: pip install -e ".[dev]" pyinstaller
 
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        run: pyinstaller --onefile --name EzVocab --add-data "src/ezvocab;ezvocab" main.py
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: pip install -e ".[dev]" flet
+
+      - name: Build
+        run: ${{ matrix.build_cmd }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/
+          path: ${{ matrix.dist_path }}
 
   build-android:
     runs-on: ubuntu-latest
